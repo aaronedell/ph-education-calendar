@@ -4,55 +4,165 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pleasant Hill Education Commission — Community Calendar</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
+  :root {
+    --oak: #5D4E37;
+    --oak-light: #8B7355;
+    --leaf: #4A7C59;
+    --leaf-light: #6BA368;
+    --leaf-pale: #E8F0E4;
+    --sky: #E8EFF5;
+    --gold: #C8A951;
+    --gold-light: #F5ECD7;
+    --bark: #3E2F1C;
+    --cream: #FDFBF5;
+    --text: #2C2416;
+    --text-light: #6B5D4F;
+  }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f4f8; color: #333; }
-  .header { background: linear-gradient(135deg, #1a5276, #2980b9); color: white; padding: 24px 20px; text-align: center; }
-  .header h1 { font-size: 24px; margin-bottom: 4px; }
-  .header p { font-size: 14px; opacity: 0.85; }
-  .header .badge { display: inline-block; background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 20px; font-size: 12px; margin-top: 8px; }
-  .container { max-width: 800px; margin: 0 auto; padding: 16px; }
-  .legend { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin: 16px 0; font-size: 13px; }
-  .legend span { padding: 3px 10px; border-radius: 12px; font-weight: 500; }
-  .tag-meeting { background: #d4efdf; color: #1e8449; }
-  .tag-community { background: #d6eaf8; color: #2471a3; }
-  .tag-art { background: #fdebd0; color: #b9770e; }
-  .month-group { margin-bottom: 24px; }
-  .month-label { font-size: 18px; font-weight: 700; color: #1a5276; padding: 8px 0; border-bottom: 2px solid #2980b9; margin-bottom: 12px; }
-  .event-card { background: white; border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); display: flex; gap: 14px; align-items: flex-start; }
-  .event-card:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
-  .event-date { min-width: 60px; text-align: center; }
-  .event-date .day { font-size: 20px; font-weight: 700; color: #1a5276; }
-  .event-date .month-abbr { font-size: 11px; color: #777; text-transform: uppercase; }
+  body { font-family: 'Inter', sans-serif; background: var(--cream); color: var(--text); min-height: 100vh; }
+
+  /* Hero header with oak tree silhouette */
+  .hero {
+    background: linear-gradient(170deg, var(--oak) 0%, var(--leaf) 60%, var(--leaf-light) 100%);
+    color: white;
+    padding: 40px 20px 50px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    right: 0;
+    height: 40px;
+    background: var(--cream);
+    clip-path: ellipse(55% 100% at 50% 100%);
+  }
+  .hero::after {
+    content: '🌳';
+    position: absolute;
+    font-size: 120px;
+    opacity: 0.08;
+    right: -10px;
+    top: -20px;
+  }
+  .hero h1 { font-family: 'Playfair Display', Georgia, serif; font-size: 28px; letter-spacing: 0.5px; margin-bottom: 6px; text-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+  .hero p { font-size: 15px; opacity: 0.9; font-weight: 400; }
+  .hero .acorn { display: inline-block; margin-top: 12px; background: rgba(255,255,255,0.15); backdrop-filter: blur(4px); padding: 5px 16px; border-radius: 20px; font-size: 12px; letter-spacing: 0.5px; }
+
+  .container { max-width: 780px; margin: -20px auto 0; padding: 0 16px 40px; position: relative; z-index: 1; }
+
+  /* Legend pills */
+  .legend { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin: 20px 0 24px; }
+  .legend span { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; border: 1px solid; }
+  .pill-meeting { background: var(--leaf-pale); color: var(--leaf); border-color: #c2d9c0; }
+  .pill-community { background: var(--sky); color: #3B6B8A; border-color: #c5d8e8; }
+  .pill-art { background: var(--gold-light); color: #8B7330; border-color: #ddd0a8; }
+
+  /* Month sections */
+  .month-group { margin-bottom: 28px; }
+  .month-label {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 22px;
+    color: var(--oak);
+    padding: 0 0 8px 0;
+    margin-bottom: 14px;
+    border-bottom: 2px solid var(--gold);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .month-label .leaf-icon { font-size: 18px; }
+
+  /* Event cards */
+  .event-card {
+    background: white;
+    border-radius: 12px;
+    padding: 16px 18px;
+    margin-bottom: 10px;
+    box-shadow: 0 1px 3px rgba(93,78,55,0.08), 0 1px 2px rgba(93,78,55,0.06);
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    transition: all 0.15s ease;
+    border: 1px solid rgba(93,78,55,0.06);
+  }
+  .event-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(93,78,55,0.12); }
+
+  .event-date { min-width: 56px; text-align: center; padding-top: 2px; }
+  .event-date .day { font-family: 'Playfair Display', Georgia, serif; font-size: 24px; font-weight: 700; color: var(--oak); line-height: 1; }
+  .event-date .month-abbr { font-size: 11px; color: var(--oak-light); text-transform: uppercase; letter-spacing: 1px; font-weight: 500; margin-top: 2px; }
+
   .event-details { flex: 1; }
-  .event-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
-  .event-meta { font-size: 13px; color: #666; }
-  .event-tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; margin-top: 4px; }
-  .border-meeting { border-left: 4px solid #27ae60; }
-  .border-community { border-left: 4px solid #2980b9; }
-  .border-art { border-left: 4px solid #e67e22; }
-  .loading { text-align: center; padding: 40px; color: #999; }
-  .error { text-align: center; padding: 40px; color: #e74c3c; }
-  footer { text-align: center; padding: 20px; color: #999; font-size: 12px; }
-  footer a { color: #2980b9; }
-  @media (max-width: 600px) { .header h1 { font-size: 20px; } .event-date { min-width: 50px; } }
+  .event-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 3px; line-height: 1.3; }
+  .event-meta { font-size: 13px; color: var(--text-light); line-height: 1.4; }
+  .event-tag { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 11px; font-weight: 600; margin-top: 6px; }
+
+  .card-meeting { border-left: 4px solid var(--leaf); }
+  .card-meeting .event-tag { background: var(--leaf-pale); color: var(--leaf); }
+  .card-community { border-left: 4px solid #5B9BD5; }
+  .card-community .event-tag { background: var(--sky); color: #3B6B8A; }
+  .card-art { border-left: 4px solid var(--gold); }
+  .card-art .event-tag { background: var(--gold-light); color: #8B7330; }
+
+  .loading { text-align: center; padding: 60px 20px; color: var(--text-light); font-size: 15px; }
+  .loading .spinner { display: inline-block; width: 24px; height: 24px; border: 3px solid var(--leaf-pale); border-top-color: var(--leaf); border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 12px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  footer {
+    text-align: center;
+    padding: 24px 16px;
+    color: var(--oak-light);
+    font-size: 12px;
+    border-top: 1px solid rgba(93,78,55,0.1);
+    max-width: 780px;
+    margin: 0 auto;
+  }
+  footer a { color: var(--leaf); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 22px; }
+    .hero { padding: 32px 16px 42px; }
+    .event-card { padding: 12px 14px; }
+    .event-date { min-width: 48px; }
+    .event-date .day { font-size: 20px; }
+    .month-label { font-size: 19px; }
+  }
 </style>
 </head>
 <body>
-<div class="header">
-  <h1>🎓 Pleasant Hill Education Commission</h1>
+
+<div class="hero">
+  <h1>🌳 Pleasant Hill Education Commission</h1>
   <p>Community Calendar 2026</p>
-  <div class="badge">Live — updates automatically</div>
+  <div class="acorn">🍂 Live — updates automatically</div>
 </div>
+
 <div class="container">
   <div class="legend">
-    <span class="tag-meeting">EC Meetings</span>
-    <span class="tag-community">Community Events</span>
-    <span class="tag-art">Art Displays</span>
+    <span class="pill-meeting">🎓 EC Meetings</span>
+    <span class="pill-community">🎉 Community Events</span>
+    <span class="pill-art">🎨 Art Displays</span>
   </div>
-  <div id="calendar"><div class="loading">Loading calendar...</div></div>
+
+  <div id="calendar">
+    <div class="loading">
+      <div class="spinner"></div><br>
+      Loading calendar...
+    </div>
+  </div>
 </div>
-<footer>Pleasant Hill Education Commission · City of Pleasant Hill</footer>
+
+<footer>
+  Pleasant Hill Education Commission · City of Pleasant Hill<br>
+  <span style="opacity:0.7">Where knowledge grows under the oaks 🌿</span>
+</footer>
+
 <script>
 const API_URL = 'https://script.google.com/macros/s/AKfycbwGT8MVjKpfln1EB7F5DsA5b6TgiAz3DUD6DPfxVn2Ea5IH2UW9LJTGDH3w_kl7QT88Ng/exec';
 
@@ -63,15 +173,18 @@ function categorize(event) {
 }
 
 function parseDate(dateStr) {
-  if (!dateStr) return { month: -1, day: 0 };
+  if (!dateStr) return { day: 0 };
   const d = new Date(dateStr);
-  if (!isNaN(d)) return { month: d.getMonth(), day: d.getDate() };
-  const months = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11,
-    january:0,february:1,march:2,april:3,june:5,july:6,august:7,september:8,october:9,november:10,december:11};
-  const m = dateStr.match(/(\w+)\s+(\d{1,2})/);
-  if (m && months[m[1].toLowerCase()] !== undefined) return { month: months[m[1].toLowerCase()], day: parseInt(m[2]) };
-  return { month: -1, day: 0 };
+  if (!isNaN(d)) return { day: d.getDate() };
+  const m = dateStr.match(/(\d{1,2})/);
+  return m ? { day: parseInt(m[1]) } : { day: 0 };
 }
+
+const monthIcons = {
+  March: '🌱', April: '🌷', May: '🌻', June: '☀️', July: '🌳',
+  August: '📚', September: '🍂', October: '🎃', November: '🍁', December: '❄️',
+  January: '🌿', February: '💚'
+};
 
 async function loadCalendar() {
   try {
@@ -80,31 +193,34 @@ async function loadCalendar() {
     const events = data.events.map(e => ({
       ...e, category: categorize(e.event), parsed: parseDate(e.date)
     }));
-    
-    const monthOrder = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+    const monthOrder = ['March','April','May','June','July','August','September','October','November','December'];
     const grouped = {};
     events.forEach(e => { const mo = e.month || 'Other'; if (!grouped[mo]) grouped[mo] = []; grouped[mo].push(e); });
-    
+
     let html = '';
     for (const month of monthOrder) {
       if (!grouped[month]) continue;
-      html += '<div class="month-group"><div class="month-label">' + month + '</div>';
+      const icon = monthIcons[month] || '📅';
+      html += '<div class="month-group"><div class="month-label"><span class="leaf-icon">' + icon + '</span> ' + month + '</div>';
+
       for (const e of grouped[month]) {
-        const p = e.parsed;
-        const day = p.day > 0 ? p.day : '';
+        const day = e.parsed.day > 0 ? e.parsed.day : '';
         const abbr = month.substring(0, 3);
-        const label = e.category === 'meeting' ? 'EC Meeting' : e.category === 'art' ? 'Art Display' : 'Community';
-        html += '<div class="event-card border-' + e.category + '">' +
+        const cat = e.category;
+        const label = cat === 'meeting' ? '🎓 EC Meeting' : cat === 'art' ? '🎨 Art Display' : '🎉 Community';
+
+        html += '<div class="event-card card-' + cat + '">' +
           '<div class="event-date"><div class="day">' + day + '</div><div class="month-abbr">' + abbr + '</div></div>' +
           '<div class="event-details"><div class="event-title">' + e.event + '</div>' +
           (e.notes ? '<div class="event-meta">' + e.notes + '</div>' : '') +
-          '<span class="event-tag tag-' + e.category + '">' + label + '</span></div></div>';
+          '<span class="event-tag">' + label + '</span></div></div>';
       }
       html += '</div>';
     }
-    document.getElementById('calendar').innerHTML = html;
+    document.getElementById('calendar').innerHTML = html || '<div class="loading">No upcoming events.</div>';
   } catch (err) {
-    document.getElementById('calendar').innerHTML = '<div class="error">Failed to load calendar. Please try again later.</div>';
+    document.getElementById('calendar').innerHTML = '<div class="loading">Unable to load calendar. Please try again later.</div>';
   }
 }
 loadCalendar();
