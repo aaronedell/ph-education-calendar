@@ -177,12 +177,55 @@ function categorize(event) {
   return 'community';
 }
 
-function parseDate(dateStr) {
-  if (!dateStr) return { day: 0 };
-  const d = new Date(dateStr);
-  if (!isNaN(d)) return { day: d.getDate() };
-  const m = dateStr.match(/(\d{1,2})/);
-  return m ? { day: parseInt(m[1]) } : { day: 0 };
+// Returns a sort key (ms since epoch) + day-of-month for display,
+// and an "expires on" date for filtering past events.
+// Handles: ISO dates, date ranges ("Jan–Mar 2026"), and bare month names ("June").
+function parseDate(dateStr, fallbackMonth) {
+  const MONTHS = {January:0,February:1,March:2,April:3,May:4,June:5,July:6,August:7,September:8,October:9,November:10,December:11,
+                  Jan:0,Feb:1,Mar:2,Apr:3,May_:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11};
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  if (!dateStr) return { sort: Infinity, day: 0, expires: null };
+
+  // Try ISO format first
+  const iso = new Date(dateStr);
+  if (!isNaN(iso.getTime()) && /\d{4}-\d{2}-\d{2}/.test(dateStr)) {
+    // End of event day (23:59) so same-day events still show until day rolls over
+    const expires = new Date(iso); expires.setHours(23,59,59,999);
+    return { sort: iso.getTime(), day: iso.getDate(), expires };
+  }
+
+  // Range format: "Jan–Mar 2026" or "Jun–Sep 2026"
+  const rangeMatch = dateStr.match(/([A-Za-z]{3,})[–\-]([A-Za-z]{3,})\s+(\d{4})/);
+  if (rangeMatch) {
+    const startMo = MONTHS[rangeMatch[1]] ?? MONTHS[rangeMatch[1].substring(0,3)];
+    const endMo = MONTHS[rangeMatch[2]] ?? MONTHS[rangeMatch[2].substring(0,3)];
+    const year = parseInt(rangeMatch[3]);
+    if (startMo !== undefined && endMo !== undefined) {
+      const start = new Date(year, startMo, 1);
+      const expires = new Date(year, endMo + 1, 0, 23, 59, 59, 999); // last day of end month
+      return { sort: start.getTime(), day: 0, expires, isRange: true, rangeText: dateStr };
+    }
+  }
+
+  // Bare month like "June" — assume current year, last day of that month
+  const mo = MONTHS[dateStr];
+  if (mo !== undefined) {
+    const year = today.getFullYear();
+    const start = new Date(year, mo, 1);
+    const expires = new Date(year, mo + 1, 0, 23, 59, 59, 999);
+    return { sort: start.getTime(), day: 0, expires, isMonthOnly: true };
+  }
+
+  // Fallback: use provided month column if available
+  if (fallbackMonth && MONTHS[fallbackMonth] !== undefined) {
+    const year = today.getFullYear();
+    const start = new Date(year, MONTHS[fallbackMonth], 1);
+    const expires = new Date(year, MONTHS[fallbackMonth] + 1, 0, 23, 59, 59, 999);
+    return { sort: start.getTime(), day: 0, expires };
+  }
+
+  return { sort: Infinity, day: 0, expires: null };
 }
 
 const monthIcons = {
@@ -195,11 +238,16 @@ async function loadCalendar() {
   try {
     const resp = await fetch(API_URL);
     const data = await resp.json();
+    const now = new Date();
     const events = data.events.map(e => ({
-      ...e, category: categorize(e.event), parsed: parseDate(e.date)
-    }));
+      ...e, category: categorize(e.event), parsed: parseDate(e.date, e.month)
+    }))
+    // Filter: drop events whose expiry has passed. Keep events with no parseable date (safer to show than hide).
+    .filter(e => !e.parsed.expires || e.parsed.expires >= now)
+    // Sort by the parsed date
+    .sort((a,b) => a.parsed.sort - b.parsed.sort);
 
-    const monthOrder = ['March','April','May','June','July','August','September','October','November','December'];
+    const monthOrder = ['January','February','March','April','May','June','July','August','September','October','November','December'];
     const grouped = {};
     events.forEach(e => { const mo = e.month || 'Other'; if (!grouped[mo]) grouped[mo] = []; grouped[mo].push(e); });
 
@@ -216,7 +264,7 @@ async function loadCalendar() {
         const label = cat === 'meeting' ? '🎓 EC Meeting' : cat === 'art' ? '🎨 Art Display' : '🎉 Community';
 
         html += '<div class="event-card card-' + cat + '">' +
-          '<div class="event-date"><div class="day">' + day + '</div><div class="month-abbr">' + abbr + '</div></div>' +
+          '<div class="event-date"><div class="day">' + (day || (e.parsed.rangeText ? '…' : '')) + '</div><div class="month-abbr">' + abbr + '</div></div>' +
           '<div class="event-details"><div class="event-title">' + e.event + '</div>' +
           (e.notes ? '<div class="event-meta">' + e.notes + '</div>' : '') +
           '<span class="event-tag">' + label + '</span></div></div>';
