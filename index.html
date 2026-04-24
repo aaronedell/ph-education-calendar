@@ -185,17 +185,40 @@ function parseDate(dateStr, fallbackMonth) {
                   Jan:0,Feb:1,Mar:2,Apr:3,May_:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11};
   const today = new Date(); today.setHours(0,0,0,0);
 
+  // Given a month (0-11), pick the nearest future year (this year if that month
+  // hasn't ended yet, otherwise next year). Prevents January entries meant for
+  // next year from being shown as past.
+  const pickFutureYear = (mo) => {
+    const currentYear = today.getFullYear();
+    const thisYearEnd = new Date(currentYear, mo + 1, 0, 23, 59, 59, 999);
+    return thisYearEnd >= today ? currentYear : currentYear + 1;
+  };
+
   if (!dateStr) return { sort: Infinity, day: 0, expires: null };
 
   // Try ISO format first
   const iso = new Date(dateStr);
   if (!isNaN(iso.getTime()) && /\d{4}-\d{2}-\d{2}/.test(dateStr)) {
-    // End of event day (23:59) so same-day events still show until day rolls over
     const expires = new Date(iso); expires.setHours(23,59,59,999);
     return { sort: iso.getTime(), day: iso.getDate(), expires };
   }
 
-  // Range format: "Jan–Mar 2026" or "Jun–Sep 2026"
+  // Range format with explicit year: "Jan–Mar 2026" or "Nov 2026–Jan 2027"
+  // Also handle cross-year: "Nov 2026–Jan 2027"
+  const crossYearMatch = dateStr.match(/([A-Za-z]{3,})\s+(\d{4})[–\-]([A-Za-z]{3,})\s+(\d{4})/);
+  if (crossYearMatch) {
+    const startMo = MONTHS[crossYearMatch[1]] ?? MONTHS[crossYearMatch[1].substring(0,3)];
+    const endMo = MONTHS[crossYearMatch[3]] ?? MONTHS[crossYearMatch[3].substring(0,3)];
+    const startYear = parseInt(crossYearMatch[2]);
+    const endYear = parseInt(crossYearMatch[4]);
+    if (startMo !== undefined && endMo !== undefined) {
+      const start = new Date(startYear, startMo, 1);
+      const expires = new Date(endYear, endMo + 1, 0, 23, 59, 59, 999);
+      return { sort: start.getTime(), day: 0, expires, isRange: true, rangeText: dateStr };
+    }
+  }
+
+  // Simple range: "Jan–Mar 2026" or "Jun–Sep 2026"
   const rangeMatch = dateStr.match(/([A-Za-z]{3,})[–\-]([A-Za-z]{3,})\s+(\d{4})/);
   if (rangeMatch) {
     const startMo = MONTHS[rangeMatch[1]] ?? MONTHS[rangeMatch[1].substring(0,3)];
@@ -203,23 +226,23 @@ function parseDate(dateStr, fallbackMonth) {
     const year = parseInt(rangeMatch[3]);
     if (startMo !== undefined && endMo !== undefined) {
       const start = new Date(year, startMo, 1);
-      const expires = new Date(year, endMo + 1, 0, 23, 59, 59, 999); // last day of end month
+      const expires = new Date(year, endMo + 1, 0, 23, 59, 59, 999);
       return { sort: start.getTime(), day: 0, expires, isRange: true, rangeText: dateStr };
     }
   }
 
-  // Bare month like "June" — assume current year, last day of that month
+  // Bare month like "June" — pick nearest future year so next-year events don't appear past
   const mo = MONTHS[dateStr];
   if (mo !== undefined) {
-    const year = today.getFullYear();
+    const year = pickFutureYear(mo);
     const start = new Date(year, mo, 1);
     const expires = new Date(year, mo + 1, 0, 23, 59, 59, 999);
     return { sort: start.getTime(), day: 0, expires, isMonthOnly: true };
   }
 
-  // Fallback: use provided month column if available
+  // Fallback: use provided month column if available, pick nearest future year
   if (fallbackMonth && MONTHS[fallbackMonth] !== undefined) {
-    const year = today.getFullYear();
+    const year = pickFutureYear(MONTHS[fallbackMonth]);
     const start = new Date(year, MONTHS[fallbackMonth], 1);
     const expires = new Date(year, MONTHS[fallbackMonth] + 1, 0, 23, 59, 59, 999);
     return { sort: start.getTime(), day: 0, expires };
@@ -247,19 +270,40 @@ async function loadCalendar() {
     // Sort by the parsed date
     .sort((a,b) => a.parsed.sort - b.parsed.sort);
 
+    // Group by year+month derived from the PARSED sort date, not the spreadsheet's month column
+    // (the spreadsheet uses month-name only, which collides across years)
     const monthOrder = ['January','February','March','April','May','June','July','August','September','October','November','December'];
     const grouped = {};
-    events.forEach(e => { const mo = e.month || 'Other'; if (!grouped[mo]) grouped[mo] = []; grouped[mo].push(e); });
+    const groupKeys = []; // preserve chronological order of groups
+    events.forEach(e => {
+      let groupKey, displayLabel, monthName;
+      if (isFinite(e.parsed.sort)) {
+        const d = new Date(e.parsed.sort);
+        monthName = monthOrder[d.getMonth()];
+        const year = d.getFullYear();
+        groupKey = `${year}-${d.getMonth()}`;
+        displayLabel = (year === now.getFullYear()) ? monthName : `${monthName} ${year}`;
+      } else {
+        groupKey = e.month || 'Other';
+        displayLabel = e.month || 'Other';
+        monthName = e.month || 'Other';
+      }
+      if (!grouped[groupKey]) {
+        grouped[groupKey] = { label: displayLabel, monthName, events: [] };
+        groupKeys.push(groupKey);
+      }
+      grouped[groupKey].events.push(e);
+    });
 
     let html = '';
-    for (const month of monthOrder) {
-      if (!grouped[month]) continue;
-      const icon = monthIcons[month] || '📅';
-      html += '<div class="month-group"><div class="month-label"><span class="leaf-icon">' + icon + '</span> ' + month + '</div>';
+    for (const key of groupKeys) {
+      const g = grouped[key];
+      const icon = monthIcons[g.monthName] || '📅';
+      html += '<div class="month-group"><div class="month-label"><span class="leaf-icon">' + icon + '</span> ' + g.label + '</div>';
 
-      for (const e of grouped[month]) {
+      for (const e of g.events) {
         const day = e.parsed.day > 0 ? e.parsed.day : '';
-        const abbr = month.substring(0, 3);
+        const abbr = g.monthName.substring(0, 3);
         const cat = e.category;
         const label = cat === 'meeting' ? '🎓 EC Meeting' : cat === 'art' ? '🎨 Art Display' : '🎉 Community';
 
